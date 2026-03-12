@@ -421,6 +421,8 @@ export default function DailyMessingTracker() {
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => defaultYear - 4 + i);
 
+  const [mobileView, setMobileView] = useState("daily");
+
   const [selectedDay, setSelectedDay] = useState(() => {
     const todayDay = today.getDate();
     return todayDay <= getDaysInMonth(defaultYear, defaultMonth) ? todayDay : 1;
@@ -538,78 +540,259 @@ export default function DailyMessingTracker() {
           </div>
 
           <div className="rounded-2xl border bg-white p-4 shadow-sm md:hidden">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">Selected Day Details</h2>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setSelectedDay((prev) => Math.max(1, prev - 1))} className="rounded-xl border px-3 py-2 text-sm font-medium text-slate-700">Prev</button>
-                <button type="button" onClick={() => setSelectedDay((prev) => Math.min(days.length, prev + 1))} className="rounded-xl border px-3 py-2 text-sm font-medium text-slate-700">Next</button>
-              </div>
+            <div className="mb-4 flex gap-2 rounded-2xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setMobileView("daily")}
+                className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition ${mobileView === "daily" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+              >
+                Daily View
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileView("monthly")}
+                className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium transition ${mobileView === "monthly" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+              >
+                Monthly View
+              </button>
             </div>
-            <div className="space-y-3">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="mb-2 font-medium text-slate-800">Out/Leave</p>
-                <select
-                  value={selectedDayData.outLeaveStatus}
-                  onChange={(e) => handleOutLeaveChange(selectedDay, e.target.value)}
-                  className="w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700"
-                >
-                  <option value="">None</option>
-                  <option value="Out">Out</option>
-                  <option value="Leave">Leave</option>
-                </select>
-                {selectedDayData.outLeaveStatus ? (
-                  <p className="mt-2 text-xs text-amber-600">This day is locked and excluded from totals.</p>
-                ) : null}
-              </div>
 
-              {baseOptions.map((option) => (
-                <div key={`mobile-${option}`} className="rounded-xl bg-slate-50 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-800">{getColumnLabel(option, selectedYear, selectedMonth)}</p>
-                      {option === "Boikali" && selectedDayData.Boikali && selectedDayData.boikaliType ? <p className="text-xs text-slate-500">{selectedDayData.boikaliType}</p> : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(selectedDay, option)}
-                      disabled={Boolean(selectedDayData.outLeaveStatus)}
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-bold transition ${selectedDayData.outLeaveStatus ? "border-amber-300 bg-amber-50 text-amber-600" : selectedDayData[option] ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-400"}`}
-                    >
-                      {selectedDayData.outLeaveStatus ? selectedDayData.outLeaveStatus : selectedDayData[option] ? "✓" : ""}
-                    </button>
+            {mobileView === "daily" ? (
+              <>
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-800">Selected Day Details</h2>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setSelectedDay((prev) => Math.max(1, prev - 1))} className="rounded-xl border px-3 py-2 text-sm font-medium text-slate-700">Prev</button>
+                    <button type="button" onClick={() => setSelectedDay((prev) => Math.min(days.length, prev + 1))} className="rounded-xl border px-3 py-2 text-sm font-medium text-slate-700">Next</button>
                   </div>
-                  {option === "Boikali" && selectedDayData.Boikali && !selectedDayData.outLeaveStatus ? (
-                    <select value={selectedDayData.boikaliType} onChange={(e) => handleBoikaliTypeChange(selectedDay, e.target.value)} className="mt-3 w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700">
-                      <option value="">Select item</option>
-                      {boikaliChoices.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
-                    </select>
-                  ) : null}
                 </div>
-              ))}
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="mb-2 font-medium text-slate-800">Out/Leave</p>
+                    <select
+                      value={selectedDayData.outLeaveStatus}
+                      onChange={(e) => handleOutLeaveChange(selectedDay, e.target.value)}
+                      className="w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700"
+                    >
+                      <option value="">None</option>
+                      <option value="Out">Out</option>
+                      <option value="Leave">Leave</option>
+                    </select>
+                    {selectedDayData.outLeaveStatus ? (
+                      <p className="mt-2 text-xs text-amber-600">This day is locked and excluded from totals.</p>
+                    ) : null}
+                  </div>
 
-              <div className="rounded-xl bg-slate-50 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium text-slate-800">Cigarette/Coke</p>
+                  {baseOptions.map((option) => (
+                    <div key={`mobile-${option}`} className="rounded-xl bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-800">{getColumnLabel(option, selectedYear, selectedMonth)}</p>
+                          {option === "Boikali" && selectedDayData.Boikali && selectedDayData.boikaliType ? <p className="text-xs text-slate-500">{selectedDayData.boikaliType}</p> : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(selectedDay, option)}
+                          disabled={Boolean(selectedDayData.outLeaveStatus)}
+                          className={`flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-bold transition ${selectedDayData.outLeaveStatus ? "border-amber-300 bg-amber-50 text-amber-600" : selectedDayData[option] ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-400"}`}
+                        >
+                          {selectedDayData.outLeaveStatus ? selectedDayData.outLeaveStatus : selectedDayData[option] ? "✓" : ""}
+                        </button>
+                      </div>
+                      {option === "Boikali" && selectedDayData.Boikali && !selectedDayData.outLeaveStatus ? (
+                        <select value={selectedDayData.boikaliType} onChange={(e) => handleBoikaliTypeChange(selectedDay, e.target.value)} className="mt-3 w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700">
+                          <option value="">Select item</option>
+                          {boikaliChoices.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
+                        </select>
+                      ) : null}
+                    </div>
+                  ))}
+
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-slate-800">Cigarette/Coke</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCigaretteUsedToggle(selectedDay)}
+                        disabled={Boolean(selectedDayData.outLeaveStatus)}
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-bold transition ${selectedDayData.outLeaveStatus ? "border-amber-300 bg-amber-50 text-amber-600" : selectedDayData.cigaretteUsed ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-400"}`}
+                      >
+                        {selectedDayData.outLeaveStatus ? selectedDayData.outLeaveStatus : selectedDayData.cigaretteUsed ? "✓" : ""}
+                      </button>
+                    </div>
+                    {selectedDayData.cigaretteUsed && !selectedDayData.outLeaveStatus ? (
+                      <div className="mt-3 grid gap-3">
+                        <select value={selectedDayData.cigaretteChoice} onChange={(e) => handleCigaretteChoiceChange(selectedDay, e.target.value)} className="w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700">
+                          <option value="">Choose type</option>
+                          {cigaretteChoices.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
+                        </select>
+                        <input type="text" inputMode="numeric" value={selectedDayData.cigaretteCount} onChange={(e) => handleCigaretteCountChange(selectedDay, e.target.value)} placeholder="Quantity" className="w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700" />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-800">Monthly Register</h2>
                   <button
                     type="button"
-                    onClick={() => handleCigaretteUsedToggle(selectedDay)}
-                    disabled={Boolean(selectedDayData.outLeaveStatus)}
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-bold transition ${selectedDayData.outLeaveStatus ? "border-amber-300 bg-amber-50 text-amber-600" : selectedDayData.cigaretteUsed ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-400"}`}
+                    onClick={() => window.print()}
+                    className="rounded-xl border px-3 py-2 text-sm font-medium text-slate-700"
                   >
-                    {selectedDayData.outLeaveStatus ? selectedDayData.outLeaveStatus : selectedDayData.cigaretteUsed ? "✓" : ""}
+                    Print
                   </button>
                 </div>
-                {selectedDayData.cigaretteUsed && !selectedDayData.outLeaveStatus ? (
-                  <div className="mt-3 grid gap-3">
-                    <select value={selectedDayData.cigaretteChoice} onChange={(e) => handleCigaretteChoiceChange(selectedDay, e.target.value)} className="w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700">
-                      <option value="">Choose type</option>
-                      {cigaretteChoices.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
-                    </select>
-                    <input type="text" inputMode="numeric" value={selectedDayData.cigaretteCount} onChange={(e) => handleCigaretteCountChange(selectedDay, e.target.value)} placeholder="Quantity" className="w-full rounded-xl border bg-white px-3 py-3 text-sm text-slate-700" />
-                  </div>
-                ) : null}
+                <div className="overflow-auto rounded-2xl border">
+                  <table className="min-w-[900px] border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="sticky left-0 top-0 z-30 border-b border-r bg-slate-100 px-3 py-3 text-left font-semibold text-slate-700">
+                          Date
+                        </th>
+                        {baseOptions.map((option) => (
+                          <th
+                            key={`mobile-month-${option}`}
+                            className="sticky top-0 z-20 min-w-[140px] border-b bg-slate-100 px-3 py-3 text-center font-semibold text-slate-700"
+                          >
+                            {getColumnLabel(option, selectedYear, selectedMonth)}
+                          </th>
+                        ))}
+                        <th className="sticky top-0 z-20 min-w-[220px] border-b bg-slate-100 px-3 py-3 text-center font-semibold text-slate-700">
+                          Cigarette/Coke
+                        </th>
+                        <th className="sticky top-0 z-20 min-w-[100px] border-b bg-slate-100 px-3 py-3 text-center font-semibold text-slate-700">
+                          Daily Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datedRows.map(({ day, label }) => {
+                        const row = data?.[day] ?? createInitialDayState();
+                        return (
+                          <tr key={`mobile-row-${day}`} className="odd:bg-white even:bg-slate-50">
+                            <td className="sticky left-0 z-10 border-r border-b bg-inherit px-3 py-3 font-medium text-slate-700 whitespace-nowrap">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex justify-end">
+                                  <select
+                                    value={row.outLeaveStatus}
+                                    onChange={(e) => handleOutLeaveChange(day, e.target.value)}
+                                    className="w-[88px] rounded-lg border bg-white px-2 py-1 text-[11px] font-medium text-slate-700"
+                                  >
+                                    <option value="">Out/Leave</option>
+                                    <option value="Out">Out</option>
+                                    <option value="Leave">Leave</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{label}</span>
+                                  {row.outLeaveStatus ? (
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                      {row.outLeaveStatus}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </td>
+
+                            {baseOptions.map((option) => {
+                              const isBoikali = option === "Boikali";
+                              return (
+                                <td key={`mobile-cell-${day}-${option}`} className="border-b px-2 py-2 text-center align-top">
+                                  <div className="flex flex-col items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggle(day, option)}
+                                      disabled={Boolean(row.outLeaveStatus)}
+                                      className={`mx-auto flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-bold transition ${row.outLeaveStatus ? "border-amber-300 bg-amber-50 text-amber-600" : row[option] ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-400"}`}
+                                    >
+                                      {row.outLeaveStatus ? row.outLeaveStatus : row[option] ? "✓" : ""}
+                                    </button>
+                                    {isBoikali && row.Boikali && !row.outLeaveStatus ? (
+                                      <select
+                                        value={row.boikaliType}
+                                        onChange={(e) => handleBoikaliTypeChange(day, e.target.value)}
+                                        className="w-full rounded-xl border bg-white px-2 py-2 text-xs text-slate-700"
+                                      >
+                                        <option value="">Select item</option>
+                                        {boikaliChoices.map((choice) => (
+                                          <option key={choice} value={choice}>
+                                            {choice}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              );
+                            })}
+
+                            <td className="border-b px-2 py-2 align-top">
+                              <div className="flex min-w-[200px] flex-col gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCigaretteUsedToggle(day)}
+                                  disabled={Boolean(row.outLeaveStatus)}
+                                  className={`flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-bold transition ${row.outLeaveStatus ? "border-amber-300 bg-amber-50 text-amber-600" : row.cigaretteUsed ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-400"}`}
+                                >
+                                  {row.outLeaveStatus ? row.outLeaveStatus : row.cigaretteUsed ? "✓" : ""}
+                                </button>
+                                {row.cigaretteUsed && !row.outLeaveStatus ? (
+                                  <>
+                                    <select
+                                      value={row.cigaretteChoice}
+                                      onChange={(e) => handleCigaretteChoiceChange(day, e.target.value)}
+                                      className="rounded-xl border bg-white px-3 py-2 text-sm text-slate-700"
+                                    >
+                                      <option value="">Choose type</option>
+                                      {cigaretteChoices.map((choice) => (
+                                        <option key={choice} value={choice}>
+                                          {choice}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={row.cigaretteCount}
+                                      onChange={(e) => handleCigaretteCountChange(day, e.target.value)}
+                                      placeholder="Quantity"
+                                      className="rounded-xl border bg-white px-3 py-2 text-sm text-slate-700"
+                                    />
+                                  </>
+                                ) : null}
+                              </div>
+                            </td>
+
+                            <td className="border-b px-3 py-3 text-center font-semibold text-slate-700">
+                              {dailyTotals[day]}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100">
+                        <td className="sticky left-0 z-10 border-r bg-slate-100 px-3 py-3 font-semibold text-slate-800">
+                          Totals
+                        </td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{totals.Breakfast}</td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{totals.Lunch}</td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{totals.Dinner}</td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{totals.Boikali}</td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{totals["Extra Messing"]}</td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">
+                          <div>{totals.cigaretteUsed} days</div>
+                          <div className="text-xs font-medium text-slate-600">Qty {totals.cigaretteCount}</div>
+                        </td>
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{grandTotal}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
