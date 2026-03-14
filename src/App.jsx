@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "./supabaseClient";
 
 export default function DailyMessingTracker() {
   const baseOptions = ["Breakfast", "Lunch", "Dinner", "Boikali", "Extra Messing"];
@@ -116,7 +117,13 @@ export default function DailyMessingTracker() {
 
   const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
   const [selectedYear, setSelectedYear] = useState(defaultYear);
-
+const [authUser, setAuthUser] = useState(null);
+const [authEmail, setAuthEmail] = useState("");
+const [authPassword, setAuthPassword] = useState("");
+const [authMode, setAuthMode] = useState("login");
+const [authLoading, setAuthLoading] = useState(false);
+const [cloudLoading, setCloudLoading] = useState(false);
+const [cloudMessage, setCloudMessage] = useState("");
   const storageKey = `${storagePrefix}-${selectedYear}-${selectedMonth}`;
   const days = useMemo(
     () => Array.from({ length: getDaysInMonth(selectedYear, selectedMonth) }, (_, i) => i + 1),
@@ -175,7 +182,26 @@ export default function DailyMessingTracker() {
       window.localStorage.setItem(storageKey, JSON.stringify(data));
     }
   }, [data, storageKey]);
+useEffect(() => {
+  const loadSession = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error) {
+      setAuthUser(data?.user ?? null);
+    }
+  };
 
+  loadSession();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setAuthUser(session?.user ?? null);
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
   const handleOutLeaveChange = (day, value) => {
     setData((prev) => {
       const current = prev[day] ?? createInitialDayState();
@@ -349,7 +375,162 @@ export default function DailyMessingTracker() {
   const resetMonth = () => {
     setData(createInitialData(selectedYear, selectedMonth));
   };
+const handleSignUp = async () => {
+  if (!authEmail || !authPassword) {
+    alert("Enter email and password");
+    return;
+  }
 
+  setAuthLoading(true);
+
+  const { data, error } = await supabase.auth.signUp({
+    email: authEmail,
+    password: authPassword,
+  });
+
+  setAuthLoading(false);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Account created successfully");
+  setAuthUser(data?.user ?? null);
+};
+
+const handleLogin = async () => {
+  if (!authEmail || !authPassword) {
+    alert("Enter email and password");
+    return;
+  }
+
+  setAuthLoading(true);
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: authEmail,
+    password: authPassword,
+  });
+
+  setAuthLoading(false);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Logged in successfully");
+  setAuthUser(data?.user ?? null);
+};
+
+const handleLogout = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    alert(error.message);
+    return;
+  }
+  setAuthUser(null);
+};
+const handleSaveToCloud = async () => {
+  if (!authUser) {
+    alert("Please log in first");
+    return;
+  }
+
+  setCloudLoading(true);
+  setCloudMessage("");
+
+  const { data: existingRows, error: checkError } = await supabase
+    .from("monthly_tracker_data")
+    .select("id")
+    .eq("user_id", authUser.id)
+    .eq("year", selectedYear)
+    .eq("month", selectedMonth);
+
+  if (checkError) {
+    setCloudLoading(false);
+    alert(checkError.message);
+    return;
+  }
+
+  const existingRow = existingRows && existingRows.length > 0 ? existingRows[0] : null;
+
+  if (existingRow) {
+    const { error } = await supabase
+      .from("monthly_tracker_data")
+      .update({
+        tracker_data: data,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingRow.id);
+
+    setCloudLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setCloudMessage("Cloud save updated successfully");
+    return;
+  }
+
+  const { error } = await supabase.from("monthly_tracker_data").insert({
+    user_id: authUser.id,
+    year: selectedYear,
+    month: selectedMonth,
+    tracker_data: data,
+    updated_at: new Date().toISOString(),
+  });
+
+  setCloudLoading(false);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  setCloudMessage("Cloud save completed successfully");
+};
+
+const handleLoadFromCloud = async () => {
+  if (!authUser) {
+    alert("Please log in first");
+    return;
+  }
+
+  setCloudLoading(true);
+  setCloudMessage("");
+
+  const { data: rows, error } = await supabase
+    .from("monthly_tracker_data")
+    .select("tracker_data")
+    .eq("user_id", authUser.id)
+    .eq("year", selectedYear)
+    .eq("month", selectedMonth);
+
+  setCloudLoading(false);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  const row = rows && rows.length > 0 ? rows[0] : null;
+
+  if (!row || !row.tracker_data) {
+    setCloudMessage("No cloud data found for this month");
+    return;
+  }
+
+  const base = createInitialData(selectedYear, selectedMonth);
+  Object.keys(base).forEach((day) => {
+    base[day] = normalizeDayData(row.tracker_data?.[day]);
+  });
+
+  setData(base);
+  setCloudMessage("Cloud data loaded successfully");
+};
   const exportToCSV = () => {
     const header = [
       "Date",
@@ -432,9 +613,91 @@ export default function DailyMessingTracker() {
     const maxDay = getDaysInMonth(selectedYear, selectedMonth);
     setSelectedDay((prev) => (prev > maxDay ? maxDay : prev));
   }, [selectedMonth, selectedYear]);
+  useEffect(() => {
+  const autoLoadFromCloud = async () => {
+    if (!authUser) return;
+
+    const { data: rows, error } = await supabase
+      .from("monthly_tracker_data")
+      .select("tracker_data")
+      .eq("user_id", authUser.id)
+      .eq("year", selectedYear)
+      .eq("month", selectedMonth)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Auto load error:", error.message);
+      return;
+    }
+
+    if (!rows?.tracker_data) return;
+
+    const base = createInitialData(selectedYear, selectedMonth);
+    Object.keys(base).forEach((day) => {
+      base[day] = normalizeDayData(rows.tracker_data?.[day]);
+    });
+
+    setData(base);
+  };
+
+  autoLoadFromCloud();
+}, [authUser, selectedYear, selectedMonth]);
 
   const selectedDayData = data?.[selectedDay] ?? createInitialDayState();
   const selectedDateLabel = formatDateLabel(selectedYear, selectedMonth, selectedDay);
+useEffect(() => {
+  const autoSaveToCloud = async () => {
+    if (!authUser) return;
+
+    const { data: existingRow, error: fetchError } = await supabase
+      .from("monthly_tracker_data")
+      .select("id")
+      .eq("user_id", authUser.id)
+      .eq("year", selectedYear)
+      .eq("month", selectedMonth)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Auto save fetch error:", fetchError.message);
+      return;
+    }
+
+    if (existingRow?.id) {
+      const { error } = await supabase
+        .from("monthly_tracker_data")
+        .update({
+          tracker_data: data,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingRow.id);
+
+      if (error) {
+        console.error("Auto save update error:", error.message);
+      }
+
+      return;
+    }
+
+    const { error } = await supabase.from("monthly_tracker_data").insert({
+      user_id: authUser.id,
+      year: selectedYear,
+      month: selectedMonth,
+      tracker_data: data,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error("Auto save insert error:", error.message);
+    }
+  };
+
+  const timeout = setTimeout(() => {
+    autoSaveToCloud();
+  }, 800);
+
+  return () => clearTimeout(timeout);
+}, [authUser, selectedYear, selectedMonth, data]);
+
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 sm:p-4 md:p-6">
@@ -489,7 +752,120 @@ export default function DailyMessingTracker() {
             </div>
           </div>
         </div>
+<div className="mb-6 rounded-2xl border bg-white p-4 shadow-sm sm:p-6">
+  <div className="flex flex-col gap-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <h2 className="text-xl font-bold text-slate-800">Account</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Sign in to save your data to your own account.
+        </p>
+      </div>
 
+      {authUser ? (
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="rounded-2xl border px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+        >
+          Log Out
+        </button>
+      ) : null}
+    </div>
+
+{authUser ? (
+  <div className="grid gap-3">
+    <div className="rounded-2xl bg-emerald-50 p-4">
+      <p className="text-sm font-medium text-emerald-700">
+        Logged in as: {authUser.email}
+      </p>
+    </div>
+
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={handleSaveToCloud}
+        disabled={cloudLoading}
+        className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+      >
+        {cloudLoading ? "Please wait..." : "Save This Month to Cloud"}
+      </button>
+
+      <button
+        type="button"
+        onClick={handleLoadFromCloud}
+        disabled={cloudLoading}
+        className="rounded-2xl border px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+      >
+        Load This Month from Cloud
+      </button>
+    </div>
+    
+    {cloudMessage ? (
+      <div className="rounded-2xl bg-slate-50 p-3">
+        <p className="text-sm text-slate-700">{cloudMessage}</p>
+      </div>
+    ) : null}
+  </div>
+) : (
+      <div className="grid gap-3">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setAuthMode("login")}
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${
+              authMode === "login"
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 bg-white text-slate-700"
+            }`}
+          >
+            Log In
+          </button>
+          <button
+            type="button"
+            onClick={() => setAuthMode("signup")}
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${
+              authMode === "signup"
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 bg-white text-slate-700"
+            }`}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <input
+          type="email"
+          value={authEmail}
+          onChange={(e) => setAuthEmail(e.target.value)}
+          placeholder="Email"
+          className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700"
+        />
+
+        <input
+          type="password"
+          value={authPassword}
+          onChange={(e) => setAuthPassword(e.target.value)}
+          placeholder="Password"
+          className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700"
+        />
+
+        <button
+          type="button"
+          onClick={authMode === "signup" ? handleSignUp : handleLogin}
+          disabled={authLoading}
+          className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {authLoading
+            ? "Please wait..."
+            : authMode === "signup"
+            ? "Create Account"
+            : "Log In"}
+        </button>
+      </div>
+    )}
+  </div>
+</div>
         <div className="mb-6 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border bg-white p-4 shadow-sm">
